@@ -1,2 +1,2 @@
 Make Nvidia CUDA for Skynet in Debian 12
-make GO_TAGS=tts,p2p,tiny-dream,stablediffusion BUILD_TYPE=cublas CMAKE_ARGS="-DGGML_USE_OPENMP=YES -DGGML_USE_CUDA=YES""-DGGML_RPC=ON -DGGML_AVX=off -DGGML_AVX2=off -DGGML_AVX512=off -DGGML_FMA=on -DGGML_F16C=on" build
+make GO_TAGS=tts,p2p,tiny-dream,stablediffusion BUILD_TYPE=cublas  BUILD_GRPC_FOR_BACKEND_LLAMA=ON CMAKE_ARGS="-DGGML_USE_OPENMP=YES -DGGML_USE_CUDA=YES""-DGGML_RPC=ON -DGGML_AVX=off -DGGML_AVX2=off -DGGML_AVX512=off -DGGML_FMA=on -DGGML_F16C=on" build
