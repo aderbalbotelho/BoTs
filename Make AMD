@@ -1,5 +1,6 @@
 Make AMD GPU, AMD CPU
-make GO_TAGS=tts,p2p,tiny-dream BUILD_TYPE=hipblas BUILD_GRPC_FOR_BACKEND_LLAMA=ON CMAKE_ARGS="-DGGML_HIPBLAS=ON -DGGML_USE_OPENMP=YES -DGGML_USE_CUDA=YES -DGGML_USE_HIPBLAS=YES -DAMDGPU_TARGETS=""gfx900"" -DGPU_TARGETS="gfx900" -DGGML_RPC=ON -DGGML_AVX=off -DGGML_AVX2=on -DGGML_AVX512=off -DGGML_FMA=on -DGGML_F16C=on" build
+export GPU_MAX_HW_QUEUES=1
+make GO_TAGS=tts,p2p,tiny-dream,stablediffusion BUILD_GRPC_FOR_BACKEND_LLAMA=ON VARIANT=llama-cpp GRPC_BACKENDS=backend-assets/grpc/llama-cpp BUILD_TYPE=hipblas CMAKE_ARGS="-DGGML_HIPBLAS=ON -DAMDGPU_TARGETS=""gfx900"" -DGPU_TARGETS="gfx900"" build
 
 llama-cpp-python + ROCm supoort in Debian 12. Debian 12. Run pip -m venv .venv end declare source ~/.ia/bin/activate in .bashrc, run source ~/.bashrc an
 CMAKE_ARGS="-DGGML_HIPBLAS=ON -DGGML_USE_OPENMP=YES -DGGML_USE_CUDA=YES -DGGML_USE_HIPBLAS=YES -DAMDGPU_TARGETS=""gfxNNN"" -DGPU_TARGETS="gfxNNN" -DLLAMA_HIPBLAS=on" FORCE_CMAKE=1 pip install llama-cpp-python
