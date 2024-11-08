@@ -1,0 +1,7 @@
+source /opt/intel/oneapi/setvars.sh
+export SYCL_CACHE_PERSISTENT=1
+# [optional] under most circumstances, the following environment variable may improve performance, but sometimes this may also cause performance degradation
+export SYCL_PI_LEVEL_ZERO_USE_IMMEDIATE_COMMANDLISTS=1
+# [optional] if you want to run on single GPU, use below command to limit GPU may improve performance
+export ONEAPI_DEVICE_SELECTOR=level_zero:0
+CMAKE_ARGS="-DLLAMA_SYCL=on -DCMAKE_C_COMPILER=icx -DCMAKE_CXX_COMPILER=icpx" pip install llama-cpp-python[server]
