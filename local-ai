@@ -1,0 +1,1 @@
+curl https://localai.io/install.sh | PORT=8080 USE_AIO=true DOCKER_INSTALL=false sh
