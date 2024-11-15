@@ -4,4 +4,5 @@ export SYCL_CACHE_PERSISTENT=1
 export SYCL_PI_LEVEL_ZERO_USE_IMMEDIATE_COMMANDLISTS=1
 # [optional] if you want to run on single GPU, use below command to limit GPU may improve performance
 export ONEAPI_DEVICE_SELECTOR=level_zero:0
-CMAKE_ARGS="-DLLAMA_SYCL=on -DCMAKE_C_COMPILER=icx -DCMAKE_CXX_COMPILER=icpx" pip install llama-cpp-python[server]
+# CMAKE_ARGS="-DLLAMA_SYCL=on -DCMAKE_C_COMPILER=icx -DCMAKE_CXX_COMPILER=icpx" pip install llama-cpp-python[server]
+LD_PRELOAD=/opt/intel/oneapi/mkl/2025.0/lib/libmkl_core.so CMAKE_ARGS="-DLLAMA_SYCL=on -DCMAKE_C_COMPILER=icx -DCMAKE_CXX_COMPILER=icpx -D WITH_LAPACK=OFF" pip install llama-cpp-python[server] --force-reinstall --upgrade --no-cache-dir --verbose
