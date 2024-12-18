@@ -4,3 +4,9 @@ make GO_TAGS=tts,p2p,tiny-dream,stablediffusion BUILD_GRPC_FOR_BACKEND_LLAMA=ON 
 
 llama-cpp-python + ROCm supoort in Debian 12. Debian 12. Run pip -m venv .venv end declare source ~/.ia/bin/activate in .bashrc, run source ~/.bashrc an
 CMAKE_ARGS="-DGGML_HIPBLAS=ON -DGGML_USE_OPENMP=YES -DGGML_USE_CUDA=YES -DGGML_USE_HIPBLAS=YES -DAMDGPU_TARGETS=""gfxNNN"" -DGPU_TARGETS="gfxNNN" -DLLAMA_HIPBLAS=on" FORCE_CMAKE=1 pip install llama-cpp-python
+# vLLM
+git clone https://github.com/vllm-project/vllm.git
+cd vllm
+pip install requirements-rocm.txt
+pip install setuptools_scm
+CMAKE_ARGS="-DGGML_HIPBLAS=ON -DGGML_USE_OPENMP=YES  -DGGML_USE_HIPBLAS=YES -DAMDGPU_TARGETS=""gfx900"" -DGPU_TARGETS="gfx900" -DLLAMA_HIPBLAS=on" FORCE_CMAKE=1 VLLM_USE_TRITON_FLASH_ATTN=0 pip install .
