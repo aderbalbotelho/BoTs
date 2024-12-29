@@ -1,0 +1,339 @@
+# CONTEXTS DATA
+a = """
+
+"""
+
+b = """
+
+"""
+
+c = """
+
+"""
+
+d = """
+
+"""
+
+e = """
+
+"""
+
+f = """
+
+"""
+
+# Configurações da API
+openai.api_key = "sk-xxx"
+openai.api_base = 'https://xxx.etx.tec.br'
+video_key = "sk-xxx"
+video_base = 'https://xxx.etx.tec.br'
+webchat_key = 'xxx'
+webchat_base = 'https://xxx.webchat.net.br'
+webchat_user = 'xxx'
+
+# Função para enviar mensagens ao cliente com base no sucesso da geração
+def send_message_to_customer(message, audio_url=None, image_url=None):
+    try:
+        if customer:
+            # Enviar mensagem de texto
+            customer.sendTextMessage(message)
+
+            # Enviar imagem, se disponível
+            if image_url:
+                customer.sendTextMessage(f"Imagem gerada: {image_url}")
+
+            # Enviar áudio, se disponível
+            if audio_url:
+                customer.sendTextMessage(f"Áudio gerado: {audio_url}")
+
+            # Salvar a mensagem
+            customer.save()
+        else:
+            print("Cliente não está inicializado.")
+    except Exception as e:
+        print(f"Erro ao enviar a mensagem ao cliente: {str(e)}")
+
+
+def transcrever_audio(media_url, webchat_base, webchat_user, webchat_key):
+    login_url = f"{webchat_base}/login"
+    login_data = {
+        "username": {webchat_user},
+        "password": {webchat_key},
+    }
+
+    with requests.Session() as session:
+        try:
+            # Fazer login
+            login_response = session.post(login_url, data=login_data)
+            login_response.raise_for_status()
+
+            # Baixar o arquivo de áudio/vídeo
+            media_response = session.get(media_url)
+            media_response.raise_for_status()
+
+            content_type = media_response.headers.get('Content-Type', '')
+            if 'audio' in content_type or 'video' in content_type:
+                files = {
+                    'file': (media_url.split('/')[-1], media_response.content, content_type)
+                }
+                data = {
+                    'model': 'whisper-tiny-q5_1',
+                    'language': 'pt'
+                }
+                response = requests.post(f"{openai.api_base}/api/v1/audio/transcriptions", headers={
+                    "Authorization": f"Bearer {openai.api_key}"
+                }, files=files, data=data)
+
+                response.raise_for_status()
+                json_response = response.json()
+
+                if "text" in json_response:
+                    return json_response["text"]
+                else:
+                    return "Nenhum texto retornado na transcrição."
+            else:
+                return f"Tipo de conteúdo inesperado: {content_type}"
+
+        except requests.RequestException as e:
+            return f"Erro ao processar a transcrição: {e}"
+
+
+def gerar_texto(prompt, static_prompts):
+    url = f"{openai.api_base}/api/chat/completions"
+    headers = {
+        "Authorization": f"Bearer {openai.api_key}",
+        "Content-Type": "application/json",
+        "Accept": "*/*"
+    }
+
+    data = {
+        "stream": False,
+        "model": "etx",
+        "messages": [{"role": "user", "content": f"{static_prompts}\n\n{prompt}"}]
+    }
+
+    try:
+        response = requests.post(url, headers=headers, json=data)
+        response.raise_for_status()
+        response_data = response.json()
+
+        if "choices" in response_data and response_data["choices"]:
+            return response_data["choices"][0]["message"]["content"]
+        else:
+            print("Resposta inesperada da API de texto:", response_data)
+            return "Erro: Resposta inesperada."
+    except requests.RequestException as e:
+        print(f"Erro ao gerar texto: {e}")
+        return "Erro ao gerar texto."
+        
+
+def generate_audio(text):
+    url = f"{openai.api_base}/api/v1/audio/speech"  # Corrigido fechamento da string
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {openai.api_key}"
+    }
+    data = {
+        "model": "pt_BR-faber-medium.onnx",
+        "backend": "piper",
+        "input": text
+    }
+    try:
+        response = requests.post(url, headers=headers, json=data, stream=True)
+        response.raise_for_status()
+        
+        # Se a API retornou sucesso, o áudio é retornado diretamente como conteúdo binário
+        if response.status_code == 200:
+            return response.content
+        else:
+            print("Erro: Status inesperado ao gerar o áudio.")
+            return None
+    except requests.RequestException as e:
+        print(f"Erro ao gerar áudio: {e}")
+        return None
+
+# Função para gerar a imagem
+def generate_image(user_prompt, positive_prompt, negative_prompt, system_prompt):
+    url = f"{openai.api_base}/api/v1/images/generations"
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {openai.api_key}"
+    }
+
+    # Inicia o prompt com o prompt do usuário
+    prompt = user_prompt
+
+    # Concatenate system, positive and negative prompts if provided
+    if system_prompt:
+        prompt = f"{system_prompt}\n\n{prompt}"
+    if positive_prompt:
+        prompt = f"{positive_prompt}\n\n{prompt}"
+    if negative_prompt:
+        prompt = f"{prompt}\n\n{negative_prompt}"
+
+    data = {
+        "prompt": prompt,
+        "size": "320x320",
+        "n": 1
+    }
+
+    try:
+        response = requests.post(url, headers=headers, json=data)
+        response.raise_for_status()
+
+        response_data = response.json()
+
+        # Verificar se a resposta contém o campo 'url'
+        if response_data and len(response_data) > 0 and 'url' in response_data[0]:
+            image_url = f"{openai.api_base}{response_data[0]['url']}"
+
+            # Baixar a imagem como conteúdo binário
+            image_response = requests.get(image_url)
+            image_response.raise_for_status()  # Levanta exceção se a requisição falhar
+
+            # Retorna o conteúdo binário da imagem
+            return image_response.content
+        else:
+            send_message_to_customer(f"Erro: URL da imagem não encontrada na resposta ou resposta vazia: {response_data}")
+            return None
+
+    except requests.RequestException as e:
+        send_message_to_customer(f"Erro ao gerar imagem: {e}")
+        return None
+
+# Função para enviar documento ao cliente
+def send_document_to_customer(title, filename, content=None, url=None):
+    try:
+        print(f"Enviando documento para o cliente: {title}")
+
+        if title == "RESPOSTA_EM_AUDIO":
+            filename = "RESPOSTA_EM_AUDIO.mp4"
+
+        if url:
+            print(f"Enviando documento via URL: {url}")
+            customer.sendDocumentMessage(title, filename, None, url=url, hide_user_name=False)
+        elif content:
+            print(f"Enviando documento com conteúdo de tamanho: {len(content)} bytes")
+            customer.sendDocumentMessage(title, filename, content)
+        else:
+            print(f"Erro: Nenhum conteúdo ou URL fornecido para {title}.")
+            return
+
+        customer.save_document(filename)
+    except Exception as e:
+        print(f"Erro ao enviar o documento ao cliente: {str(e)}")
+        
+
+# Função para enviar áudio e imagem para conversão em vídeo
+def send_audio_and_image_for_conversion(audio_content, image_content, video_base, video_key):
+    if audio_content is None or image_content is None:
+        print("Erro: Falta de áudio ou imagem para enviar para conversão.")
+        return None
+
+    url = f'{video_base}/generate-video/'  # A variável video_base deve ter a URL base correta
+    headers = {
+        "Authorization": f"Bearer {video_key}"
+    }
+
+    try:
+        # Preparar os arquivos para envio (na memória)
+        files = {
+            "audio": ("audio.wav", audio_content, "audio/wav"),
+            "images": ("image.png", image_content, "image/png")
+        }
+
+        # Enviando a solicitação para conversão
+        convert_response = requests.post(url, headers=headers, files=files)
+        convert_response.raise_for_status()
+
+        # Verifique o tipo de resposta para garantir que é o vídeo convertido
+        content_type = convert_response.headers.get('Content-Type')
+        if content_type == 'video/mp4':
+            return convert_response.content
+        else:
+            print(f"Tipo de conteúdo inesperado na resposta de conversão: {content_type}")
+            return None
+    except requests.RequestException as e:
+        print(f"Erro ao converter áudio e imagem: {e}")
+        return None
+
+
+# Função para dividir texto em parágrafos
+def split_text_by_paragraphs(text):
+    return text.split('\n\n')
+
+
+# Função para verificar se o arquivo é áudio ou vídeo
+def is_audio_or_video(mime_type):
+    audio_video_formats = [
+        'audio/mpeg', 'audio/ogg', 'audio/wav', 'audio/mp3', 'audio/mp4', 
+        'audio/m4a', 'audio/opus', 'audio/3gp', 'video/mp4', 'video/m4v', 
+        'video/avi', 'video/ogg', 'video/mpeg', 'video/x-msvideo'
+    ]
+    return any(fmt in mime_type for fmt in audio_video_formats)
+
+# Função principal
+try:
+    if hasattr(customer.message, 'attachment') and customer.message.attachment:
+        attachment = customer.message.attachment
+        if is_audio_or_video(attachment.mime):
+            base_url = f"{webchat_base}/media/chatapp/"
+            file_url = base_url + str(attachment.file.path).split('/chatapp/')[-1]
+            user_question = transcrever_audio(file_url, webchat_base, webchat_user, webchat_key)
+
+            if not user_question:
+                send_message_to_customer("Desculpe, não foi possível transcrever o áudio enviado.")
+                print("Erro: Transcrição do áudio retornou None.")
+            else:
+                send_message_to_customer(f"Você disse: {user_question}")
+        else:
+            user_question = customer.message.content
+    else:
+        user_question = customer.message.content
+
+    if not user_question:
+        send_message_to_customer("Não foi possível obter sua mensagem.")
+        print("Erro: Pergunta do usuário não foi determinada.")
+
+    static_prompts = a + b + c + d + e + f  # Ajuste conforme suas variáveis estáticas
+    resposta_texto = gerar_texto(user_question, static_prompts)
+
+    if not resposta_texto:
+        send_message_to_customer("Desculpe, houve um erro ao gerar o texto.")
+        print("Erro: Geração de texto retornou None.")
+    else:
+        send_message_to_customer(f"BoT: {resposta_texto}\n\nhttps://etx.tec.br/#contato.")
+        partes_texto = split_text_by_paragraphs(resposta_texto)
+
+        for i, parte in enumerate(partes_texto):
+            system_prompt = f'Menino realista.{resposta_texto}.'
+            positive_prompt = "Menino branco, jovem, olhos verdes."
+            negative_prompt = "Não sensualizar, não mostrar da cintura para baixo, não mostrar animais."
+            image_content = generate_image(parte, positive_prompt, negative_prompt, system_prompt)
+            if not image_content:
+                send_message_to_customer(f"Erro ao gerar a imagem para a parte {i + 1}.")
+                print(f"Erro: Geração de imagem retornou None para parte {i + 1}.")
+                continue
+
+            audio_content = generate_audio(parte)
+            if not audio_content:
+                send_message_to_customer(f"Desculpe, não foi possível gerar o áudio na parte {i + 1}.")
+                print(f"Erro: Geração de áudio retornou None para parte {i + 1}.")
+                continue
+
+            video_content = send_audio_and_image_for_conversion(audio_content, image_content, video_base, video_key)
+            if not video_content:
+                send_message_to_customer(f"Desculpe, não foi possível converter o áudio e a imagem para vídeo na parte {i + 1}.")
+                print(f"Erro: Conversão de áudio e imagem para vídeo retornou None para parte {i + 1}.")
+                continue
+
+            send_document_to_customer(
+                f'Vídeo gerado por IA - Parte {i + 1}', 
+                f'video_gerado_{i}.mp4', 
+                content=video_content
+            )
+
+except Exception as e:
+    print(f"Erro ao processar a solicitação: {str(e)}")
+    send_message_to_customer(f"Desculpe, houve um erro ao processar sua solicitação: {str(e)}")
